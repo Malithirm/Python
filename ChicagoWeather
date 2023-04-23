@@ -1,0 +1,104 @@
+from PyQt5 import QtCore, QtGui, QtWidgets
+from bs4 import BeautifulSoup
+import requests
+from matplotlib import pyplot as plt
+import os
+
+class Ui_MainWindow(object):
+    def setupUi(self, MainWindow):
+        MainWindow.setObjectName("MainWindow")
+        MainWindow.resize(1081, 559)
+
+        palette = QtGui.QPalette()
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
+        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Button, brush)
+        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Window, brush)
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
+        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Highlight, brush)
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
+        palette.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Button, brush)
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0))
+        MainWindow.setPalette(palette)
+
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
+        self.centralwidget.setObjectName("centralwidget")
+
+        self.label = QtWidgets.QLabel(self.centralwidget)
+        self.label.setGeometry(QtCore.QRect(20, 10, 1041, 411))
+        self.label.setText("")
+        self.label.setObjectName("label")
+
+        self.pushButton = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton.setGeometry(QtCore.QRect(20, 440, 1041, 51))
+        self.pushButton.setObjectName("pushButton")
+        self.pushButton.clicked.connect(self.weatherFunc)
+
+        MainWindow.setCentralWidget(self.centralwidget)
+        self.menubar = QtWidgets.QMenuBar(MainWindow)
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1081, 26))
+        self.menubar.setObjectName("menubar")
+
+        MainWindow.setMenuBar(self.menubar)
+        self.statusbar = QtWidgets.QStatusBar(MainWindow)
+        self.statusbar.setObjectName("statusbar")
+        MainWindow.setStatusBar(self.statusbar)
+
+        self.retranslateUi(MainWindow)
+        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
+    def weatherFunc(self):
+        TempFahrenheitHigh = []
+        TempFahrenheitLow = []
+        TempCelciusHigh = []
+        TempCelciusLow = []
+        Days = []
+
+     # Website to scrape, I'm not familiar with API yet and I don't know how to make it customizable.
+        html_text = requests.get("https://weather.com/weather/tenday/l/Chicago+IL").text
+        soup = BeautifulSoup(html_text, "lxml")
+        content = soup.findAll("details", class_="DaypartDetails--DayPartDetail--2XOOV Disclosure--themeList--1Dz21")
+
+        for i in content:
+            TempFahrenheitHigh.append(i.find("span", class_="DetailsSummary--highTempValue--3PjlX").text[:2])
+            TempFahrenheitLow.append(i.find("span", class_="DetailsSummary--lowTempValue--2tesQ").text[:2])
+            Days.append(i.find("span", class_="DailyContent--daypartDate--3VGlz").text)
+
+        for i in TempFahrenheitHigh:
+            if i != "--":
+                TempCelciusHigh.append(round((int(i.replace("°", "")) - 32) * 5 / 9, 1))
+            else:
+                TempCelciusHigh.append(0)
+
+        for i in TempFahrenheitLow:
+            TempCelciusLow.append(round((int(i.replace("°", "")) - 32) * 5 / 9, 1))
+
+        # print(f"{TempFahrenheitHigh}\n{TempFahrenheitLow}\n{TempCelciusHigh}\n{TempCelciusLow}\n{Days}")
+
+        plt.style.use("dark_background")
+        plt.figure(figsize=(11, 4))
+        plt.grid(linestyle="dashed", color="gray")
+        plt.plot(Days[1:], TempCelciusHigh[1:], color="red", linewidth=2, label="High Temperature (℃)", ls="solid")
+        plt.plot(Days[1:], TempCelciusLow[1:], color="orange", linewidth=2, label="Low Temperature (℃)", ls="solid")
+        plt.legend(loc="upper left")
+        plt.suptitle("Chicago, IL")
+        plt.title("Weather Forecast for the Next Two Weeks")
+
+        directory = os.path.dirname(os.path.abspath(__file__))
+        plt.savefig(os.path.join(directory, "weather_plot.jpg"))
+        self.label.setPixmap(QtGui.QPixmap("weather_plot.jpg"))
+
+    def retranslateUi(self, MainWindow):
+        _translate = QtCore.QCoreApplication.translate
+        MainWindow.setWindowTitle(_translate("MainWindow", "Chicago Weather"))
+        self.pushButton.setText(_translate("MainWindow", "Load the Data"))
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    MainWindow = QtWidgets.QMainWindow()
+    ui = Ui_MainWindow()
+    ui.setupUi(MainWindow)
+    MainWindow.show()
+    sys.exit(app.exec_())
+
